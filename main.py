@@ -73,17 +73,12 @@ async def create_checkout_session(request: Request):
 
     # escolhe a URL de sucesso de acordo com o produto
     if price_id in (
-        'price_1RzO0jEHsMKn9uopi6Ee3fSD',
-        'price_1S0Uq8EHsMKn9uopNoI5pLue',
-        'price_1S2CudEHsMKn9uopXxfi8DcG',
-        'price_1S2CuuEHsMKn9uop3bAVF83Q',
-        'price_1S3lyOEHsMKn9uopaOw5rHq7',
-        'price_1S3lyXEHsMKn9uopkFy2Qzt1',
-        'price_1S09qdEHsMKn9uopqNgryDVt'
+        'price_1S4ThvEn1uVju5MM20P4B3F8',
+        'price_1S4TiDEn1uVju5MMIsslYoPx'
     ):
-        success_url = add_sid('https://learnmoredigitalcourse.com/recovery-audizen-stripe-21')
+        success_url = add_sid('https://learnmoredigitalcourse.com/recovery-audizen-stripe2-21')
     else:
-        success_url = add_sid('https://learnmoredigitalcourse.com/audizen_stripe_9')
+        success_url = add_sid('https://learnmoredigitalcourse.com/audizen_stripe2_19')
 
     session = stripe.checkout.Session.create(
         payment_method_types=['card'],
@@ -676,116 +671,6 @@ async def stripe_webhook(request: Request):
     
     # 5) Retorna 200 sempre
     return JSONResponse({"received": True})
-
-@app.post("/track-paypal")
-async def track_paypal(request: Request):
-    raw_body = await request.body()
-    # 1) Validação back-and-forth com o PayPal
-    verify = requests.post(
-        "https://ipnpb.paypal.com/cgi-bin/webscr",
-        data=b"cmd=_notify-validate&" + raw_body,
-        headers={"Content-Type": "application/x-www-form-urlencoded"}
-    )
-    if verify.text != "VERIFIED":
-        return JSONResponse(status_code=400, content={"status": "invalid ipn"})
-
-    # 2) Parse dos dados do IPN
-    form = dict(urllib.parse.parse_qsl(raw_body.decode()))
-    utm_source       = form.get("custom_utm_source", "")
-    utm_medium       = form.get("custom_utm_medium", "")
-    utm_campaign     = form.get("custom_utm_campaign", "")
-    utm_term         = form.get("custom_utm_term", "")
-    utm_content      = form.get("custom_utm_content", "")
-
-    # ───────────────────────────────────────────────────────────
-    # 2.5) Dispara o Purchase para a Meta (Facebook) Conversion API
-    purchase_payload = {
-      "data": [{
-        "event_name":    "Purchase",
-        "event_time":    int(time.time()),
-        "event_id":      form.get("txn_id", ""),              # ID da transação PayPal
-        "action_source": "website",
-        "event_source_url": form.get("return_url", ""),
-        "user_data": {
-          "em": hashlib.sha256(
-                  form.get("payer_email", "").encode("utf-8")
-                ).hexdigest()
-        },
-        "custom_data": {
-          "currency": form.get("mc_currency", ""),
-          "value":    float(form.get("mc_gross", 0)),
-          "content_ids": [ form.get("item_number", "") ],
-          "content_type": "product"
-        }
-      }]
-    }
-    requests.post(
-      f"https://graph.facebook.com/v14.0/{PIXEL_ID}/events",
-      params={"access_token": ACCESS_TOKEN},
-      json=purchase_payload
-    )
-
-    # 2.5.1) Cria pedido inicial no UTMify (PayPal)
-    txn_id = form.get("txn_id", "")
-    created_at = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-    utmify_order = {
-      "orderId":       txn_id,
-      "platform":      "PayPal",
-      "paymentMethod": "paypal",
-      "status":        "waiting_payment",
-      "createdAt":     created_at,
-      "approvedDate":  None,
-      "refundedAt":    None,
-      "customer": {
-        "email": form.get("payer_email", "")
-      },
-      "products": [
-        {
-          "id":           form.get("item_number", ""),
-          "name":         form.get("item_name", ""),
-          "quantity":     int(form.get("quantity", 1)),
-          "priceInCents": int(float(form.get("mc_gross", 0)) * 100)
-        }
-      ],
-      "trackingParameters": {
-        "utm_source":      utm_source,
-        "utm_medium":      utm_medium,
-        "utm_campaign":    utm_campaign,
-        "utm_term":        utm_term,
-        "utm_content":     utm_content
-      },
-      "commission": {
-        "totalPriceInCents":     int(float(form.get("mc_gross", 0)) * 100),
-        "gatewayFeeInCents":     0,
-        "userCommissionInCents": 0,
-        "currency":              form.get("mc_currency", "").upper()
-      }
-    }
-    resp_utm = requests.post(
-      UTMIFY_API_URL,
-      headers={
-        "Content-Type":  "application/json",
-        "x-api-token":   UTMIFY_API_KEY
-      },
-      json=utmify_order
-    )
-    print("→ Pedido inicial (PayPal) enviado ao UTMify:", resp_utm.status_code, resp_utm.text)
-    # ───────────────────────────────────────────────────────────
-
-    # 3) Cria o cliente na Stripe
-    stripe.api_key = STRIPE_SECRET_KEY
-    stripe.Customer.create(
-        email=form.get("payer_email"),
-        metadata={
-            "utm_source":   utm_source,
-            "utm_medium":   utm_medium,
-            "utm_campaign": utm_campaign,
-            "utm_term":     utm_term,
-            "utm_content":  utm_content,
-            "origin":       "paypal"
-        }
-    )
-    return JSONResponse({"status": "ok"})
 
 if __name__ == "__main__":
     import uvicorn

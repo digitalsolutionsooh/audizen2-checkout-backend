@@ -74,6 +74,8 @@ async def create_checkout_session(request: Request):
     # escolhe a URL de sucesso de acordo com o produto
     if price_id in (
         'price_1S4ThvEn1uVju5MM20P4B3F8',
+        'price_1S5XwkEn1uVju5MMDd2LDijV',
+        'price_1S5XyXEn1uVju5MMSuJwuGkc',
         'price_1S4TiDEn1uVju5MMIsslYoPx'
     ):
         success_url = add_sid('https://learnmoredigitalcourse.com/recovery-audizen-stripe2-21')

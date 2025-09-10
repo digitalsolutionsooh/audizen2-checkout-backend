@@ -90,7 +90,6 @@ async def create_checkout_session(request: Request):
         customer_email=customer_email,
         phone_number_collection={"enabled": True},
         billing_address_collection="required",
-        customer_update={"name": "auto", "address": "auto"},
         success_url=success_url,
         cancel_url='https://learnmoredigitalcourse.com/erro',
         # grava UTMs na própria Session

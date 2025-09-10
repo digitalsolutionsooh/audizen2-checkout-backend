@@ -89,6 +89,8 @@ async def create_checkout_session(request: Request):
         customer_creation='always',
         customer_email=customer_email,
         phone_number_collection={"enabled": True},
+        billing_address_collection="required",
+        customer_update={"name": "auto", "address": "auto"},
         success_url=success_url,
         cancel_url='https://learnmoredigitalcourse.com/erro',
         # grava UTMs na própria Session
@@ -249,7 +251,12 @@ async def create_upsell_intent(request: Request):
         payment_method=pm_id,
         confirmation_method="automatic",   # confirmaremos no front
         metadata=base_meta,
-        idempotency_key=idem_key
+        idempotency_key=idem_key,
+        payment_method_options={
+            "card": {
+                "request_three_d_secure": "any"  # Tenta 3D Secure se o cartão suportar
+            }
+        }
     )
 
     return {"client_secret": intent.client_secret, "pm_id": pm_id}
